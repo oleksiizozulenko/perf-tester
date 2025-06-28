@@ -194,7 +194,7 @@ node perf-tester run --label "debug-test" --urls "https://example.com" --headful
 
 ## Database
 
-Test results are stored in a local SQLite database (`perf-tester.db`) for historical analysis and comparison.
+Test results are stored in a local SQLite database (`perf-tester.sqlite`) for historical analysis and comparison.
 
 ### Database Schema
 
