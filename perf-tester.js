@@ -53,6 +53,11 @@ function generateHtmlReport(results, labels, reportType = 'detailed') {
     `;
   } else if (reportType === 'aggregate') {
     title = `Aggregate Performance Report - ${labels.join(', ')}`;
+    
+    // Check if we have percentage difference data
+    const hasDiffData = results.length > 0 && results[0].hasOwnProperty('loadTime_diff_pct');
+    const baselineLabel = hasDiffData ? results[0].baseline_label : null;
+    
     tableHtml = `
       <table>
         <thead>
@@ -61,33 +66,66 @@ function generateHtmlReport(results, labels, reportType = 'detailed') {
             <th>Label</th>
             <th>Runs</th>
             <th>Avg Load Time (ms)</th>
+            ${hasDiffData ? `<th>Load Time vs ${baselineLabel} (%)</th>` : ''}
             <th>Avg TTFB (ms)</th>
+            ${hasDiffData ? `<th>TTFB vs ${baselineLabel} (%)</th>` : ''}
             <th>Avg Score</th>
+            ${hasDiffData ? `<th>Score vs ${baselineLabel} (%)</th>` : ''}
             <th>Avg FCP (ms)</th>
+            ${hasDiffData ? `<th>FCP vs ${baselineLabel} (%)</th>` : ''}
             <th>Avg TTI (ms)</th>
+            ${hasDiffData ? `<th>TTI vs ${baselineLabel} (%)</th>` : ''}
             <th>Avg TBT (ms)</th>
+            ${hasDiffData ? `<th>TBT vs ${baselineLabel} (%)</th>` : ''}
             <th>Avg SpeedIdx (ms)</th>
+            ${hasDiffData ? `<th>SpeedIdx vs ${baselineLabel} (%)</th>` : ''}
             <th>Avg LCP (ms)</th>
+            ${hasDiffData ? `<th>LCP vs ${baselineLabel} (%)</th>` : ''}
             <th>Avg CLS</th>
+            ${hasDiffData ? `<th>CLS vs ${baselineLabel} (%)</th>` : ''}
           </tr>
         </thead>
         <tbody>
-          ${results.map(row => `
-            <tr>
-              <td>${row.url}</td>
-              <td>${row.label}</td>
-              <td>${row.runs}</td>
-              <td>${row.avgLoadTime?.toFixed(0) ?? ''}</td>
-              <td>${row.avgTTFB?.toFixed(0) ?? ''}</td>
-              <td>${row.avgPerformance?.toFixed(0) ?? ''}</td>
-              <td>${row.avgFCP?.toFixed(0) ?? ''}</td>
-              <td>${row.avgTTI?.toFixed(0) ?? ''}</td>
-              <td>${row.avgTBT?.toFixed(0) ?? ''}</td>
-              <td>${row.avgSpeedIndex?.toFixed(0) ?? ''}</td>
-              <td>${row.avgLCP?.toFixed(0) ?? ''}</td>
-              <td>${row.avgCLS?.toFixed(3) ?? ''}</td>
-            </tr>
-          `).join('')}
+          ${results.map(row => {
+            const getDiffClass = (diff) => {
+              if (diff === null || diff === undefined) return '';
+              if (diff > 0) return 'diff-worse';
+              if (diff < 0) return 'diff-better';
+              return '';
+            };
+            
+            const formatDiff = (diff) => {
+              if (diff === null || diff === undefined) return '';
+              const sign = diff > 0 ? '+' : '';
+              return `${sign}${diff}%`;
+            };
+            
+            return `
+              <tr>
+                <td>${row.url}</td>
+                <td>${row.label}</td>
+                <td>${row.runs}</td>
+                <td>${row.avgLoadTime?.toFixed(0) ?? ''}</td>
+                ${hasDiffData ? `<td class="${getDiffClass(row.loadTime_diff_pct)}">${formatDiff(row.loadTime_diff_pct)}</td>` : ''}
+                <td>${row.avgTTFB?.toFixed(0) ?? ''}</td>
+                ${hasDiffData ? `<td class="${getDiffClass(row.ttfb_diff_pct)}">${formatDiff(row.ttfb_diff_pct)}</td>` : ''}
+                <td>${row.avgPerformance?.toFixed(0) ?? ''}</td>
+                ${hasDiffData ? `<td class="${getDiffClass(row.performance_diff_pct)}">${formatDiff(row.performance_diff_pct)}</td>` : ''}
+                <td>${row.avgFCP?.toFixed(0) ?? ''}</td>
+                ${hasDiffData ? `<td class="${getDiffClass(row.fcp_diff_pct)}">${formatDiff(row.fcp_diff_pct)}</td>` : ''}
+                <td>${row.avgTTI?.toFixed(0) ?? ''}</td>
+                ${hasDiffData ? `<td class="${getDiffClass(row.tti_diff_pct)}">${formatDiff(row.tti_diff_pct)}</td>` : ''}
+                <td>${row.avgTBT?.toFixed(0) ?? ''}</td>
+                ${hasDiffData ? `<td class="${getDiffClass(row.tbt_diff_pct)}">${formatDiff(row.tbt_diff_pct)}</td>` : ''}
+                <td>${row.avgSpeedIndex?.toFixed(0) ?? ''}</td>
+                ${hasDiffData ? `<td class="${getDiffClass(row.speedIndex_diff_pct)}">${formatDiff(row.speedIndex_diff_pct)}</td>` : ''}
+                <td>${row.avgLCP?.toFixed(0) ?? ''}</td>
+                ${hasDiffData ? `<td class="${getDiffClass(row.lcp_diff_pct)}">${formatDiff(row.lcp_diff_pct)}</td>` : ''}
+                <td>${row.avgCLS?.toFixed(3) ?? ''}</td>
+                ${hasDiffData ? `<td class="${getDiffClass(row.cls_diff_pct)}">${formatDiff(row.cls_diff_pct)}</td>` : ''}
+              </tr>
+            `;
+          }).join('')}
         </tbody>
       </table>
     `;
@@ -173,6 +211,17 @@ function generateHtmlReport(results, labels, reportType = 'detailed') {
             margin: 5px 0;
             color: #666;
         }
+        .diff-better {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .diff-worse {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .diff-neutral {
+            color: #6c757d;
+        }
     </style>
 </head>
 <body>
@@ -187,6 +236,9 @@ function generateHtmlReport(results, labels, reportType = 'detailed') {
                 <p><strong>Labels:</strong> ${labels.join(', ')}</p>
                 <p><strong>Total Results:</strong> ${results.length}</p>
                 <p><strong>Report Type:</strong> ${reportType === 'detailed' ? 'Detailed' : 'Aggregate'}</p>
+                ${reportType === 'aggregate' && results.length > 0 && results[0].hasOwnProperty('loadTime_diff_pct') ? 
+                  `<p><strong>Baseline:</strong> ${results[0].baseline_label} (first label in list)</p>
+                   <p><strong>Percentage differences:</strong> Green = better, Red = worse</p>` : ''}
             </div>
             ${tableHtml}
         </div>
@@ -432,7 +484,7 @@ program
   .action(async (opts) => {
     const fs = require('fs');
     const path = require('path');
-    const { getAggregateByLabels } = require('./db');
+    const { getAggregateWithDiffByLabels } = require('./db');
 
     // Load config file if provided
     let config = {};
@@ -461,7 +513,7 @@ program
       console.error('No labels provided.');
       process.exit(1);
     }
-    const results = await getAggregateByLabels(labels);
+    const results = await getAggregateWithDiffByLabels(labels);
     if (!results.length) {
       console.log('No aggregate data found for the given labels.');
       return;
@@ -474,14 +526,39 @@ program
     console.log(`HTML report saved to: ${filename}`);
     
     // Also print table to console for convenience
+    const baselineLabel = results[0]?.baseline_label;
+    const hasDiffData = results.length > 0 && results[0].hasOwnProperty('loadTime_diff_pct');
+    
     const header = [
       'URL', 'Label', 'Runs', 'Avg Load Time', 'Avg TTFB', 'Avg Score', 'Avg FCP', 'Avg TTI', 'Avg TBT', 'Avg SpeedIdx', 'Avg LCP', 'Avg CLS'
     ];
+    
+    if (hasDiffData) {
+      header.push(
+        `Load Time vs ${baselineLabel} (%)`,
+        `TTFB vs ${baselineLabel} (%)`,
+        `Score vs ${baselineLabel} (%)`,
+        `FCP vs ${baselineLabel} (%)`,
+        `TTI vs ${baselineLabel} (%)`,
+        `TBT vs ${baselineLabel} (%)`,
+        `SpeedIdx vs ${baselineLabel} (%)`,
+        `LCP vs ${baselineLabel} (%)`,
+        `CLS vs ${baselineLabel} (%)`
+      );
+    }
+    
     console.log(header.join(' | '));
     console.log(header.map(() => '---').join(' | '));
+    
     // Print rows
     for (const row of results) {
-      console.log([
+      const formatDiff = (diff) => {
+        if (diff === null || diff === undefined) return '';
+        const sign = diff > 0 ? '+' : '';
+        return `${sign}${diff}%`;
+      };
+      
+      const rowData = [
         row.url,
         row.label,
         row.runs,
@@ -494,7 +571,23 @@ program
         row.avgSpeedIndex?.toFixed(0) ?? '',
         row.avgLCP?.toFixed(0) ?? '',
         row.avgCLS?.toFixed(3) ?? ''
-      ].join(' | '));
+      ];
+      
+      if (hasDiffData) {
+        rowData.push(
+          formatDiff(row.loadTime_diff_pct),
+          formatDiff(row.ttfb_diff_pct),
+          formatDiff(row.performance_diff_pct),
+          formatDiff(row.fcp_diff_pct),
+          formatDiff(row.tti_diff_pct),
+          formatDiff(row.tbt_diff_pct),
+          formatDiff(row.speedIndex_diff_pct),
+          formatDiff(row.lcp_diff_pct),
+          formatDiff(row.cls_diff_pct)
+        );
+      }
+      
+      console.log(rowData.join(' | '));
     }
   });
 

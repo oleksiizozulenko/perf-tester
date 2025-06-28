@@ -2,3 +2,4 @@ perf-tester.sqlite
 node_modules/
 *config.json
 package-lock.json
+*.html

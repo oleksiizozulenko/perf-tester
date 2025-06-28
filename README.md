@@ -42,7 +42,7 @@ node perf-tester run --config config.json
 node perf-tester report --labels "production-test,staging-test"
 
 # Generate aggregate report
-node perf-tester aggregate --labels "production-test,staging-test"
+node perf-tester  aggregate --labels "production-test,staging-test"
 ```
 
 ### Command Options

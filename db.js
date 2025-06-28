@@ -79,9 +79,121 @@ function getAggregateByLabels(labels) {
       FROM results
       WHERE label IN (${placeholders})
       GROUP BY url, label
-      ORDER BY avgPerformance ASC, avgLCP DESC
+      ORDER BY url ASC, label ASC
     `;
     db.all(query, labels, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows || []);
+    });
+  });
+}
+
+function getAggregateWithDiffByLabels(labels) {
+  return new Promise((resolve, reject) => {
+    const placeholders = labels.map(() => '?').join(',');
+    const query = `
+      WITH base_data AS (
+        SELECT
+          url, label,
+          COUNT(*) as runs,
+          AVG(loadTime) as avgLoadTime,
+          AVG(ttfb) as avgTTFB,
+          AVG(performance) as avgPerformance,
+          AVG(fcp) as avgFCP,
+          AVG(tti) as avgTTI,
+          AVG(tbt) as avgTBT,
+          AVG(speedIndex) as avgSpeedIndex,
+          AVG(lcp) as avgLCP,
+          AVG(cls) as avgCLS
+        FROM results
+        WHERE label IN (${placeholders})
+        GROUP BY url, label
+      ),
+      baseline AS (
+        SELECT 
+          url,
+          label as baseline_label,
+          avgLoadTime as baseline_loadTime,
+          avgTTFB as baseline_ttfb,
+          avgPerformance as baseline_performance,
+          avgFCP as baseline_fcp,
+          avgTTI as baseline_tti,
+          avgTBT as baseline_tbt,
+          avgSpeedIndex as baseline_speedIndex,
+          avgLCP as baseline_lcp,
+          avgCLS as baseline_cls
+        FROM base_data
+        WHERE label = ?
+      )
+      SELECT 
+        bd.url,
+        bd.label,
+        bd.runs,
+        bd.avgLoadTime,
+        bd.avgTTFB,
+        bd.avgPerformance,
+        bd.avgFCP,
+        bd.avgTTI,
+        bd.avgTBT,
+        bd.avgSpeedIndex,
+        bd.avgLCP,
+        bd.avgCLS,
+        bl.baseline_label,
+        CASE 
+          WHEN bl.baseline_loadTime > 0 THEN 
+            ROUND(((bd.avgLoadTime - bl.baseline_loadTime) / bl.baseline_loadTime) * 100, 1)
+          ELSE NULL 
+        END as loadTime_diff_pct,
+        CASE 
+          WHEN bl.baseline_ttfb > 0 THEN 
+            ROUND(((bd.avgTTFB - bl.baseline_ttfb) / bl.baseline_ttfb) * 100, 1)
+          ELSE NULL 
+        END as ttfb_diff_pct,
+        CASE 
+          WHEN bl.baseline_performance > 0 THEN 
+            ROUND(((bd.avgPerformance - bl.baseline_performance) / bl.baseline_performance) * 100, 1)
+          ELSE NULL 
+        END as performance_diff_pct,
+        CASE 
+          WHEN bl.baseline_fcp > 0 THEN 
+            ROUND(((bd.avgFCP - bl.baseline_fcp) / bl.baseline_fcp) * 100, 1)
+          ELSE NULL 
+        END as fcp_diff_pct,
+        CASE 
+          WHEN bl.baseline_tti > 0 THEN 
+            ROUND(((bd.avgTTI - bl.baseline_tti) / bl.baseline_tti) * 100, 1)
+          ELSE NULL 
+        END as tti_diff_pct,
+        CASE 
+          WHEN bl.baseline_tbt > 0 THEN 
+            ROUND(((bd.avgTBT - bl.baseline_tbt) / bl.baseline_tbt) * 100, 1)
+          ELSE NULL 
+        END as tbt_diff_pct,
+        CASE 
+          WHEN bl.baseline_speedIndex > 0 THEN 
+            ROUND(((bd.avgSpeedIndex - bl.baseline_speedIndex) / bl.baseline_speedIndex) * 100, 1)
+          ELSE NULL 
+        END as speedIndex_diff_pct,
+        CASE 
+          WHEN bl.baseline_lcp > 0 THEN 
+            ROUND(((bd.avgLCP - bl.baseline_lcp) / bl.baseline_lcp) * 100, 1)
+          ELSE NULL 
+        END as lcp_diff_pct,
+        CASE 
+          WHEN bl.baseline_cls > 0 THEN 
+            ROUND(((bd.avgCLS - bl.baseline_cls) / bl.baseline_cls) * 100, 1)
+          ELSE NULL 
+        END as cls_diff_pct
+      FROM base_data bd
+      LEFT JOIN baseline bl ON bd.url = bl.url
+      ORDER BY bd.url ASC, bd.label ASC
+    `;
+    
+    // Use the first label as baseline
+    const baselineLabel = labels[0];
+    const queryParams = [...labels, baselineLabel];
+    
+    db.all(query, queryParams, (err, rows) => {
       if (err) reject(err);
       else resolve(rows || []);
     });
@@ -92,5 +204,6 @@ module.exports = {
   insertResult,
   getResultsByLabels,
   getAggregateByLabels,
+  getAggregateWithDiffByLabels,
   db
 };
