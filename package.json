@@ -1,0 +1,20 @@
+{
+  "name": "perf-tester",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "bin": {
+    "perf-tester": "./perf-tester.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chrome-launcher": "^0.15.2",
+    "commander": "^9.4.1",
+    "lighthouse": "^9.6.8",
+    "sqlite3": "^5.1.6"
+  }
+}
