@@ -1,4 +1,4 @@
-perf-tester.db
+perf-tester.sqlite
 node_modules/
 *config.json
 package-lock.json
